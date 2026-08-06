@@ -4,7 +4,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatINR } from "@/lib/format";
 import { toast } from "sonner";
-import { printKitchenReceipt } from "@/lib/receipt";
+// import { printKitchenReceipt } from "@/lib/receipt";
+import { printKitchenReceipt } from "@/lib/printer";
 export const Route = createFileRoute("/_authenticated/admin/orders")({
   component: OrdersPage,
 });
@@ -53,35 +54,41 @@ function OrdersPage() {
 
   async function updateStatus(id: string, status: OrderStatus) {
 
-  const { error } = await supabase
-    .from("orders")
-    .update({
-      order_status: status
-    })
-    .eq("id", id);
+    const { error } = await supabase
+      .from("orders")
+      .update({
+        order_status: status
+      })
+      .eq("id", id);
 
 
-  if (error) {
-    return toast.error(error.message);
+    if (error) {
+      toast.error(error.message);
+      return false;
+
+    }
+
+
+    qc.invalidateQueries({
+      queryKey: ["admin-orders"]
+    });
+
+
+    toast.success(`Order marked ${status}`);
+    return true;
   }
 
 
-  qc.invalidateQueries({
-    queryKey: ["admin-orders"]
-  });
+  async function markPreparing(order: any) {
+    const success = await updateStatus(
+      order.id,
+      "preparing"
+    );
 
-
-  toast.success(`Order marked ${status}`);
-}
-
-
-async function markPreparing(order: any) {
-
-  await updateStatus(order.id, "preparing");
-
-  printKitchenReceipt(order);
-
-}
+    if (success) {
+      printKitchenReceipt(order);
+    }
+  }
 
   async function markPaid(id: string) {
     const { error } = await supabase.from("orders").update({ payment_status: "paid" }).eq("id", id);
@@ -138,7 +145,7 @@ async function markPreparing(order: any) {
                     </button>
                   ) : null}
                   {o.order_status !== "cancelled" && o.order_status !== "completed" ? (
-                    <button onClick={() => updateStatus(o, "cancelled")} className="text-xs uppercase tracking-widest px-4 py-2 rounded-full ring-1 ring-walnut-950/10 hover:bg-stone-100">
+                    <button onClick={() => updateStatus(o.id, "cancelled")} className="text-xs uppercase tracking-widest px-4 py-2 rounded-full ring-1 ring-walnut-950/10 hover:bg-stone-100">
                       Cancel
                     </button>
                   ) : null}
