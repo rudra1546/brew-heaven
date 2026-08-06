@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatINR } from "@/lib/format";
 import { toast } from "sonner";
-
+import { printKitchenReceipt } from "@/lib/receipt";
 export const Route = createFileRoute("/_authenticated/admin/orders")({
   component: OrdersPage,
 });
@@ -52,11 +52,36 @@ function OrdersPage() {
   }, [qc]);
 
   async function updateStatus(id: string, status: OrderStatus) {
-    const { error } = await supabase.from("orders").update({ order_status: status }).eq("id", id);
-    if (error) return toast.error(error.message);
-    qc.invalidateQueries({ queryKey: ["admin-orders"] });
-    toast.success(`Order marked ${status}`);
+
+  const { error } = await supabase
+    .from("orders")
+    .update({
+      order_status: status
+    })
+    .eq("id", id);
+
+
+  if (error) {
+    return toast.error(error.message);
   }
+
+
+  qc.invalidateQueries({
+    queryKey: ["admin-orders"]
+  });
+
+
+  toast.success(`Order marked ${status}`);
+}
+
+
+async function markPreparing(order: any) {
+
+  await updateStatus(order.id, "preparing");
+
+  printKitchenReceipt(order);
+
+}
 
   async function markPaid(id: string) {
     const { error } = await supabase.from("orders").update({ payment_status: "paid" }).eq("id", id);
@@ -104,12 +129,16 @@ function OrdersPage() {
                 ) : null}
                 <div className="flex flex-wrap gap-2">
                   {cfg.next ? (
-                    <button onClick={() => updateStatus(o.id, cfg.next!)} className="text-xs uppercase tracking-widest px-4 py-2 rounded-full bg-walnut-950 text-stone-50 hover:bg-walnut-900">
+                    <button onClick={() =>
+                      cfg.next === "preparing"
+                        ? markPreparing(o)
+                        : updateStatus(o.id, cfg.next!)
+                    } className="text-xs uppercase tracking-widest px-4 py-2 rounded-full bg-walnut-950 text-stone-50 hover:bg-walnut-900">
                       Mark {STATUS_FLOW[cfg.next].label}
                     </button>
                   ) : null}
                   {o.order_status !== "cancelled" && o.order_status !== "completed" ? (
-                    <button onClick={() => updateStatus(o.id, "cancelled")} className="text-xs uppercase tracking-widest px-4 py-2 rounded-full ring-1 ring-walnut-950/10 hover:bg-stone-100">
+                    <button onClick={() => updateStatus(o, "cancelled")} className="text-xs uppercase tracking-widest px-4 py-2 rounded-full ring-1 ring-walnut-950/10 hover:bg-stone-100">
                       Cancel
                     </button>
                   ) : null}
