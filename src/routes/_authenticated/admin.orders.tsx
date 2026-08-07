@@ -1,11 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatINR } from "@/lib/format";
 import { toast } from "sonner";
+import chimeSound from "@/assets/chime.mp3";
 // import { printKitchenReceipt } from "@/lib/receipt";
 import { printKitchenReceipt } from "@/lib/printer";
+
 export const Route = createFileRoute("/_authenticated/admin/orders")({
   component: OrdersPage,
 });
@@ -22,6 +24,12 @@ const STATUS_FLOW: Record<OrderStatus, { next?: OrderStatus; label: string; colo
 
 function OrdersPage() {
   const qc = useQueryClient();
+
+  const orderSound = useRef(new Audio(chimeSound));
+  useEffect(() => {
+    orderSound.current.preload = "auto";
+  }, []);
+  
   const { data: orders = [] } = useQuery({
     queryKey: ["admin-orders"],
     queryFn: async () => {
@@ -42,8 +50,22 @@ function OrdersPage() {
         qc.invalidateQueries({ queryKey: ["admin-orders"] });
         qc.invalidateQueries({ queryKey: ["admin-stats"] });
         if (payload.eventType === "INSERT") {
-          const row = payload.new as { order_number?: number; table_number?: number };
-          toast.success(`New order #${row.order_number ?? "?"} · Table ${row.table_number ?? "?"}`);
+
+          const row = payload.new as {
+            order_number?: number;
+            table_number?: number;
+          };
+
+          // Play notification sound
+          orderSound.current.currentTime = 0;
+
+          orderSound.current.play().catch((err) => {
+            console.log("Unable to play sound:", err);
+          });
+
+          toast.success(
+            `New order #${row.order_number ?? "?"} · Table ${row.table_number ?? "?"}`
+          );
         }
       })
       .subscribe();
