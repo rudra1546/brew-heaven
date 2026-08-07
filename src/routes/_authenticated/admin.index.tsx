@@ -14,21 +14,50 @@ function DashboardPage() {
     queryFn: async () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const [{ data: orders }, { data: pending }, { data: popular }] = await Promise.all([
-        supabase.from("orders").select("id, total_amount, created_at, order_status"),
-        supabase.from("orders").select("id").eq("order_status", "pending"),
-        supabase.from("order_items").select("item_name, quantity"),
-      ]);
-      const todaysOrders = (orders ?? []).filter((o) => new Date(o.created_at) >= today);
-      const revenue = todaysOrders.reduce((s, o) => s + Number(o.total_amount), 0);
+      const { data: orders } = await supabase
+        .from("orders")
+        .select(`
+    id,
+    total_amount,
+    created_at,
+    order_status,
+    order_items(
+      item_name,
+      quantity
+    )
+  `);
+      // const todaysOrders = (orders ?? []).filter((o) => new Date(o.created_at) >= today);
+      // const revenue = todaysOrders.reduce((s, o) => s + Number(o.total_amount), 0);
+      const activeOrders = (orders ?? []).filter(
+        (o) => o.order_status !== "cancelled"
+      );
+
+      const todaysOrders = activeOrders.filter(
+        (o) => new Date(o.created_at) >= today
+      );
+
+      const revenue = todaysOrders.reduce(
+        (s, o) => s + Number(o.total_amount),
+        0
+      );
       const counts = new Map<string, number>();
-      (popular ?? []).forEach((r) => counts.set(r.item_name, (counts.get(r.item_name) ?? 0) + r.quantity));
+
+      (activeOrders ?? []).forEach(order => {
+        order.order_items?.forEach(item => {
+          counts.set(
+            item.item_name,
+            (counts.get(item.item_name) ?? 0) + item.quantity
+          );
+        });
+      });
       const top = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
       return {
-        totalOrders: (orders ?? []).length,
+        totalOrders: activeOrders.length,
         todaysOrders: todaysOrders.length,
         revenue,
-        pending: (pending ?? []).length,
+        pending: activeOrders.filter(
+          (o) => o.order_status === "pending"
+        ).length,
         top,
       };
     },
