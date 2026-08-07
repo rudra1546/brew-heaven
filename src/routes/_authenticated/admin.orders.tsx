@@ -24,8 +24,6 @@ const STATUS_FLOW: Record<OrderStatus, { next?: OrderStatus; label: string; colo
 function OrdersPage() {
   const qc = useQueryClient();
 
-
-
   const { data: orders = [] } = useQuery({
     queryKey: ["admin-orders"],
     queryFn: async () => {
@@ -39,29 +37,29 @@ function OrdersPage() {
     },
   });
 
-  useEffect(() => {
-    const channel = supabase
-      .channel("admin-orders-live")
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, (payload) => {
-        qc.invalidateQueries({ queryKey: ["admin-orders"] });
-        qc.invalidateQueries({ queryKey: ["admin-stats"] });
-        if (payload.eventType === "INSERT") {
+  // useEffect(() => {
+  //   const channel = supabase
+  //     .channel("admin-orders-live")
+  //     .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, (payload) => {
+  //       qc.invalidateQueries({ queryKey: ["admin-orders"] });
+  //       qc.invalidateQueries({ queryKey: ["admin-stats"] });
+  //       if (payload.eventType === "INSERT") {
 
-          const row = payload.new as {
-            order_number?: number;
-            table_number?: number;
-          };
+  //         const row = payload.new as {
+  //           order_number?: number;
+  //           table_number?: number;
+  //         };
 
-          toast.success(
-            `New order #${row.order_number ?? "?"} · Table ${row.table_number ?? "?"}`
-          );
-        }
-      })
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [qc]);
+  //         toast.success(
+  //           `New order #${row.order_number ?? "?"} · Table ${row.table_number ?? "?"}`
+  //         );
+  //       }
+  //     })
+  //     .subscribe();
+  //   return () => {
+  //     supabase.removeChannel(channel);
+  //   };
+  // }, [qc]);
 
   async function updateStatus(id: string, status: OrderStatus) {
 
