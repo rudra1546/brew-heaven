@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatINR } from "@/lib/format";
 import { toast } from "sonner";
-import chimeSound from "@/assets/chime.mp3";
+import chimeSound from "@/assets/new-order.mp3";
 // import { printKitchenReceipt } from "@/lib/receipt";
 import { printKitchenReceipt } from "@/lib/printer";
 
@@ -29,7 +29,7 @@ function OrdersPage() {
   useEffect(() => {
     orderSound.current.preload = "auto";
   }, []);
-  
+
   const { data: orders = [] } = useQuery({
     queryKey: ["admin-orders"],
     queryFn: async () => {
