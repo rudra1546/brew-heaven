@@ -95,7 +95,7 @@ useEffect(() => {
               key={it.to}
               to={it.to}
               activeOptions={{ exact: it.exact }}
-              activeProps={{ className: "bg-walnut-950 text-stone-50" }}
+              activeProps={{ className: "bg-amber-100 text-amber-800 font-semibold ring-1 ring-amber-300" }}
               className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-walnut-950/70 hover:bg-stone-100 whitespace-nowrap"
             >
               <it.icon className="size-4" /> {it.label}
