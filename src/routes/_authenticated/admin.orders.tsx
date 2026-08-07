@@ -1,10 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatINR } from "@/lib/format";
 import { toast } from "sonner";
-import chimeSound from "@/assets/new-order.mp3";
 // import { printKitchenReceipt } from "@/lib/receipt";
 import { printKitchenReceipt } from "@/lib/printer";
 
@@ -25,10 +24,7 @@ const STATUS_FLOW: Record<OrderStatus, { next?: OrderStatus; label: string; colo
 function OrdersPage() {
   const qc = useQueryClient();
 
-  const orderSound = useRef(new Audio(chimeSound));
-  useEffect(() => {
-    orderSound.current.preload = "auto";
-  }, []);
+
 
   const { data: orders = [] } = useQuery({
     queryKey: ["admin-orders"],
@@ -55,13 +51,6 @@ function OrdersPage() {
             order_number?: number;
             table_number?: number;
           };
-
-          // Play notification sound
-          orderSound.current.currentTime = 0;
-
-          orderSound.current.play().catch((err) => {
-            console.log("Unable to play sound:", err);
-          });
 
           toast.success(
             `New order #${row.order_number ?? "?"} · Table ${row.table_number ?? "?"}`

@@ -1,9 +1,10 @@
 import { createFileRoute, Link, Outlet, useNavigate } from "@tanstack/react-router";
+import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { LayoutDashboard, UtensilsCrossed, FolderTree, QrCode, ClipboardList, CalendarDays, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-
+import chimeSound from "@/assets/new-order.mp3";
 export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminLayout,
 });
@@ -12,6 +13,47 @@ function AdminLayout() {
   const { isAdmin } = Route.useRouteContext();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const orderSound = useRef(new Audio(chimeSound));
+useEffect(() => {
+  if (!isAdmin) return;
+
+  orderSound.current.preload = "auto";
+
+  const channel = supabase
+    .channel("admin-orders-live")
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "orders",
+      },
+      (payload) => {
+        qc.invalidateQueries({ queryKey: ["admin-orders"] });
+        qc.invalidateQueries({ queryKey: ["admin-stats"] });
+
+        const row = payload.new as {
+          order_number?: number;
+          table_number?: number;
+        };
+
+        orderSound.current.currentTime = 0;
+
+        orderSound.current.play().catch((err) => {
+          console.log("Unable to play sound:", err);
+        });
+
+        toast.success(
+          `New order #${row.order_number ?? "?"} · Table ${row.table_number ?? "?"}`
+        );
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, [isAdmin, qc]);
 
   async function signOut() {
     await qc.cancelQueries();
