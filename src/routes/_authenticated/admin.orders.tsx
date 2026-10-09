@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatINR } from "@/lib/format";
 import { toast } from "sonner";
 // import { printKitchenReceipt } from "@/lib/receipt";
-import { printKitchenReceipt } from "@/lib/printer";
+import { printKitchenReceipt, printCustomerReceipt } from "@/lib/printer";
 
 export const Route = createFileRoute("/_authenticated/admin/orders")({
   component: OrdersPage,
@@ -95,7 +95,8 @@ function OrdersPage() {
     );
 
     if (success) {
-      printKitchenReceipt(order);
+      await printKitchenReceipt(order);
+      await printCustomerReceipt(order);
     }
   }
 

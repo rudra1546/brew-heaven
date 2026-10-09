@@ -1,37 +1,37 @@
-  import qz from "qz-tray";
+import qz from "qz-tray";
 
 
-  export async function printKitchenReceipt(order:any){
+export async function printKitchenReceipt(order: any) {
 
-    try {
+  try {
 
-      // Connect to QZ Tray
+    // Connect to QZ Tray
 
-      if(!qz.websocket.isActive()) {
-        await qz.websocket.connect();
-      }
-
-
-      // Select printer
-
-      //Remove comment when printer isnt specified
-      // const printerName = await qz.printers.find();
-      const printerName = "HP LaserJet Professional M1136 MFP";
-
-      const config = qz.configs.create(
-        printerName
-      );
+    if (!qz.websocket.isActive()) {
+      await qz.websocket.connect();
+    }
 
 
-      const items = (order.order_items || [])
-        .map(
-          (item:any)=>
+    // Select printer
+
+    //Remove comment when printer isnt specified
+    // const printerName = await qz.printers.find();
+    const printerName = "HP LaserJet Professional M1136 MFP";
+
+    const config = qz.configs.create(
+      printerName
+    );
+
+
+    const items = (order.order_items || [])
+      .map(
+        (item: any) =>
           `${item.quantity} x ${item.item_name}`
-        )
-        .join("\n");
+      )
+      .join("\n");
 
 
-      const htmlContent = `
+    const htmlContent = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -79,112 +79,120 @@
       `.trim();
 
 
-      const data = [
-        {
-          type: "pixel",
-          format: "html",
-          flavor: "plain",
-          data: htmlContent
-        }
-      ];
+    const data = [
+      {
+        type: "pixel",
+        format: "html",
+        flavor: "plain",
+        data: htmlContent
+      }
+    ];
 
 
-      // Print single copy
-      await qz.print(
-        config,
-        data
-      );
+    // Print single copy
+    await qz.print(
+      config,
+      data
+    );
 
 
-      console.log(
-        "Printed successfully"
-      );
+    console.log(
+      "Printed successfully"
+    );
 
 
-    } catch(error){
+  } catch (error) {
 
-      console.error(
-        "Printer Error",
-        error
-      );
-
-    }
+    console.error(
+      "Printer Error",
+      error
+    );
 
   }
 
+}
 
-  export async function printCustomerReceipt(order: any) {
-    try {
-      // Connect to QZ Tray
-      if (!qz.websocket.isActive()) {
-        await qz.websocket.connect();
-      }
 
-      // Select printer
-      const printerName = "HP LaserJet Professional M1136 MFP";
-      const config = qz.configs.create(printerName);
+export async function printCustomerReceipt(order: any) {
+  try {
+    // Connect to QZ Tray
+    if (!qz.websocket.isActive()) {
+      await qz.websocket.connect();
+    }
 
-      const orderItems: any[] = order.order_items || [];
+    // Select printer
+    const printerName = "HP LaserJet Professional M1136 MFP";
+    const config = qz.configs.create(printerName);
 
-      const itemsRows = orderItems
-        .map((item: any) => {
-          const qty = Number(item.quantity) || 1;
-          const price = Number(item.price) || 0;
-          const lineTotal = qty * price;
-          return `
+    const rawItems = order?.order_items ?? order?.items ?? order?.orderItems ?? [];
+    const orderItems: any[] = Array.isArray(rawItems) ? rawItems : (rawItems ? [rawItems] : []);
+
+    // Temporary diagnostic logs
+    console.log(`[Diagnostic] printCustomerReceipt called for Order #${order?.order_number ?? order?.id ?? "N/A"}`);
+    console.log(`[Diagnostic] Total items received in order: ${orderItems.length}`);
+    console.log(`[Diagnostic] Received item details:`, orderItems.map((i: any, idx: number) => `[${idx + 1}] ${i.quantity ?? 1}x ${i.item_name ?? i.name ?? "Unknown"} @ ₹${i.price ?? 0}`));
+
+    const itemsRows = orderItems
+      .map((item: any) => {
+        const qty = Number(item.quantity) || 1;
+        const price = Number(item.price) || 0;
+        const lineTotal = qty * price;
+        return `
       <tr>
-        <td style="padding: 4px 0;">${item.item_name}</td>
+        <td style="padding: 4px 0;">${item.item_name ?? item.name}</td>
         <td class="right" style="padding: 4px 0;">${qty}</td>
         <td class="right" style="padding: 4px 0;">₹${price.toFixed(2)}</td>
         <td class="right" style="padding: 4px 0;">₹${lineTotal.toFixed(2)}</td>
       </tr>
           `.trim();
-        })
-        .join("\n");
+      })
+      .join("\n");
 
-      const calculatedSubtotal = orderItems.reduce((acc: number, item: any) => {
-        const qty = Number(item.quantity) || 1;
-        const price = Number(item.price) || 0;
-        return acc + qty * price;
-      }, 0);
+    console.log(`[Diagnostic] Generated HTML table item rows count: ${orderItems.length}`);
 
-      const subtotal = order.subtotal != null ? Number(order.subtotal) : calculatedSubtotal;
-      const total = order.total_amount != null ? Number(order.total_amount) : subtotal;
+    const calculatedSubtotal = orderItems.reduce((acc: number, item: any) => {
+      const qty = Number(item.quantity) || 1;
+      const price = Number(item.price) || 0;
+      return acc + qty * price;
+    }, 0);
 
-      const discountAmount = order.discount != null
-        ? Number(order.discount)
-        : (order.discount_amount != null ? Number(order.discount_amount) : 0);
+    const subtotal = order.subtotal != null ? Number(order.subtotal) : calculatedSubtotal;
+    const total = order.total_amount != null ? Number(order.total_amount) : subtotal;
 
-      const discountRow = discountAmount > 0
-        ? `<tr><td style="padding: 3px 0;">Discount:</td><td class="right" style="padding: 3px 0;">-₹${discountAmount.toFixed(2)}</td></tr>`
-        : "";
+    const discountAmount = order.discount != null
+      ? Number(order.discount)
+      : (order.discount_amount != null ? Number(order.discount_amount) : 0);
 
-      const taxRow = order.tax != null
-        ? `<tr><td style="padding: 3px 0;">Taxes:</td><td class="right" style="padding: 3px 0;">₹${Number(order.tax).toFixed(2)}</td></tr>`
-        : `<tr><td style="padding: 3px 0;">Taxes:</td><td class="right" style="padding: 3px 0;">(Inclusive)</td></tr>`;
+    const discountRow = discountAmount > 0
+      ? `<tr><td style="padding: 3px 0;">Discount:</td><td class="right" style="padding: 3px 0;">-₹${discountAmount.toFixed(2)}</td></tr>`
+      : "";
 
-      const paymentInfo = [
-        order.payment_status ? String(order.payment_status).toUpperCase() : "",
-        order.payment_method ? `(${order.payment_method})` : ""
-      ].filter(Boolean).join(" ");
+    const taxRow = order.tax != null
+      ? `<tr><td style="padding: 3px 0;">Taxes:</td><td class="right" style="padding: 3px 0;">₹${Number(order.tax).toFixed(2)}</td></tr>`
+      : `<tr><td style="padding: 3px 0;">Taxes:</td><td class="right" style="padding: 3px 0;">(Inclusive)</td></tr>`;
 
-      const dateStr = order.created_at
-        ? new Date(order.created_at).toLocaleString()
-        : new Date().toLocaleString();
+    const paymentInfo = [
+      order.payment_status ? String(order.payment_status).toUpperCase() : "",
+      order.payment_method ? `(${order.payment_method})` : ""
+    ].filter(Boolean).join(" ");
 
-      const tableLine = order.table_number != null
-        ? `<div><span class="bold">Table :</span> ${order.table_number}</div>`
-        : "";
+    const dateStr = order.created_at
+      ? new Date(order.created_at).toLocaleString()
+      : new Date().toLocaleString();
 
-      const customerLine = order.customer_name
-        ? `<div><span class="bold">Customer :</span> ${order.customer_name}</div>`
-        : "";
+    const tableLine = order.table_number != null
+      ? `<div><span class="bold">Table :</span> ${order.table_number}</div>`
+      : "";
 
-      const paymentLine = paymentInfo
-        ? `<div><span class="bold">Payment :</span> ${paymentInfo}</div>`
-        : "";
+    const customerLine = order.customer_name
+      ? `<div><span class="bold">Customer :</span> ${order.customer_name}</div>`
+      : "";
 
-      const htmlContent = `
+    const paymentLine = paymentInfo
+      ? `<div><span class="bold">Payment :</span> ${paymentInfo}</div>`
+      : "";
+
+    const htmlContent = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -283,19 +291,19 @@
 </html>
       `.trim();
 
-      const data = [
-        {
-          type: "pixel",
-          format: "html",
-          flavor: "plain",
-          data: htmlContent
-        }
-      ];
+    const data = [
+      {
+        type: "pixel",
+        format: "html",
+        flavor: "plain",
+        data: htmlContent
+      }
+    ];
 
-      await qz.print(config, data);
+    await qz.print(config, data);
 
-      console.log("Customer receipt printed successfully");
-    } catch (error) {
-      console.error("Customer Receipt Printer Error", error);
-    }
+    console.log("Customer receipt printed successfully");
+  } catch (error) {
+    console.error("Customer Receipt Printer Error", error);
   }
+}
